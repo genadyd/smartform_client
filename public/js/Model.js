@@ -17,7 +17,7 @@ class Model {
 
     }
     getOneQuestionForm(requestObject, responseData, that){
-        if(responseData == "0") {
+        // if(responseData == "0") {
             let m = new Model(),
             ajaxObject = {
                 'func': 'saveUserAnswersFormsObject',
@@ -26,8 +26,9 @@ class Model {
                 'userAnswersObjectForSave':window.answersQuestionSaveObject,
                 'dataType':'json'
             };
+        window.answersQuestionSaveObject = {};
             m.sendAjax(ajaxObject)
-        }
+        // }
     }
     simpleFormSaveBuildObject(that){
         let formContainer = that.closest('.form_container'),

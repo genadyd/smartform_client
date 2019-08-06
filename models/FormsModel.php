@@ -111,7 +111,7 @@ class FormsModel
         $values_string = implode(',', $values);
         $query = "INSERT INTO smart_user_answers (crypt, form_crypt, question_crypt, answer_crypt, session_crypt, CT) VALUES {$values_string}";
         $st = $this->_db->query($query);
-        return $st->errorInfo();
+        return $st->errorCode();
     }
 
     private function createNewUser($phone_num){
@@ -200,11 +200,19 @@ class FormsModel
                 'sessionCrypt'=> $new_session_crypt,
                 'fields' =>$form_data['fields']
             );
-            $save_res =  $this->simpleFormSaveData($save_data_object);
-            return $save_res;
+
         }else{
-return var_dump('ggggggg');
+            $session_crypt = $_COOKIE['sess_c'];
+            $save_data_object = array(
+                'questinnationCrypt'=>$form_data['questinnationCrypt'],
+                'simpleFormCrypt' => $form_data['simpleFormCrypt'],
+                'sessionCrypt'=> $session_crypt,
+                'fields' =>$form_data['fields']
+            );
+
         }
+        $save_res =  $this->simpleFormSaveData($save_data_object);
+        return $save_res;
     }
 
 

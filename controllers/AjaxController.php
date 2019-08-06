@@ -32,8 +32,10 @@ class AjaxController
             require_once 'simple_form_component.php';
             ob_end_flush();
         }else{
-            $form_container_data['parentAnswerCrypt']=0;
-             $this->getOneQuestionForm($form_container_data);
+            if($form_container_data['simpleFormObj']['up']==1) {
+                $form_container_data['parentAnswerCrypt'] = 0;
+                $this->getOneQuestionForm($form_container_data);
+            }
         }
     }
     private function getOneQuestionForm($form_container_data){
