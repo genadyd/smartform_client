@@ -214,6 +214,49 @@ class FormsModel
         $save_res =  $this->simpleFormSaveData($save_data_object);
         return $save_res;
     }
+    public function getOneSimpleFormByCrypt($form_crypt){
+        $query = "SELECT sfe.crypt AS element_crypt, sfe.title AS field_title, sfe.type, sfe.placeholder, value,  sf.* FROM simple_forms_elements sfe LEFT JOIN simple_forms sf ON sfe.form_crypt = sf.crypt   WHERE sf.crypt = :FORM_CRYPT";
+        $st = $this->_db->prepare($query);
+        $st->bindParam(":FORM_CRYPT",$form_crypt );
+        $st->execute();
+        $res = $st->fetchAll(PDO::FETCH_ASSOC);
+        $simple_form_object = array();
+        foreach ($res as $element){
+            $simple_form_object['crypt'] = $form_crypt;
+            $simple_form_object['is_simple'] = 1;
+            $simple_form_object['questinnation_crypt'] = $element['smart_form_crypt'];
+            $simple_form_object['title'] = $element['title'];
+            $simple_form_object['order'] = $element['form_order'];
+            $simple_form_object['up'] = $element['up'];
+            $simple_form_object['fields'][$element['element_crypt']] = array(
+                'title'=>$element['field_title'],
+                'type'=>$element['type'],
+                'placeholder'=>$element['placeholder'],
+            );
+        }
+        return $simple_form_object;
+    }
+    public function questionBack($data){
+
+        if($data['parentAnswerCrypt']=='0'){
+            $last_up_simple_query = "SELECT crypt FROM simple_forms WHERE up = 1 AND form_order = (SELECT MAX(form_order) FROM simple_forms WHERE up = 1)";
+            $l_st = $this->_db->query($last_up_simple_query);
+            $r = $l_st->fetch(PDO::FETCH_ASSOC);
+            $crypt = $r['crypt'];
+            return $this->getOneSimpleFormByCrypt($crypt);
+        }
+
+//        get parent answer Question =============
+        $query = "SELECT * FROM questions WHERE crypt = (SELECT question_crypt from answers WHERE crypt = :PARENT_ANSWER_CRYPT) ";
+       $st =  $this->_db->prepare($query);
+       $st->bindParam(":PARENT_ANSWER_CRYPT",$data['parentAnswerCrypt'] );
+       $st->execute();
+        $res = $st->fetch(PDO::FETCH_ASSOC);
+       $answers =  $this->getAnswersByQuestion($res['crypt']);
+       $res['answers']= $answers;
+       $res['form_data']= $res['form_crypt'];
+        return $res;
+    }
 
 
 

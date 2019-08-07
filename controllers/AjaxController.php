@@ -61,6 +61,18 @@ class AjaxController
      }
 
     }
+    private function questionBack($form_container_data){
+        $form_data = $this->forms_model->questionBack($form_container_data);
+        if(isset($form_data['is_simple'])){
+            ob_start();
+            require_once 'simple_form_component.php';
+            ob_end_flush();
+        }else {
+            ob_start();
+            require_once 'form_component_box.php';
+            ob_end_flush();
+        }
+    }
     private function saveUserAnswersFormsObject($form_data){
         $res = $this->forms_model->saveUserAnswersFormsObject($form_data['userAnswersObjectForSave']);
         echo $res;

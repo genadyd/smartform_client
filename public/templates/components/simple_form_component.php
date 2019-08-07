@@ -15,6 +15,9 @@
           <button class="simple_form_send" form_order="<?= $form_data['order']?>" up="<?= $form_data['up']?>">
               שלך
           </button>
+          <button class="simple_form_back" form_order="<?= $form_data['order']?>" up="<?= $form_data['up']?>">
+              back
+          </button>
       </div>
   </div>
 </div>
