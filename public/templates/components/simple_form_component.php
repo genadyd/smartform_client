@@ -1,5 +1,6 @@
 <div class="simple_form_box">
-  <div class="form_container" simple_form_crypt="<?=$form_data['crypt']?>" questinnation_crypt="<?= $form_data['questinnation_crypt'] ?>">
+  <div class="form_container" simple_form_crypt="<?=$form_data['crypt']?>" questinnation_crypt="<?= $form_data['questinnation_crypt'] ?>"
+  <?php if(isset($form_data['is_back'])):?> is_back="1" <?php endif; ?>>
      <div class="form_container_header">
          <h3><?=$form_data['title']?></h3>
      </div>

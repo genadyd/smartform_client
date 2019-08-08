@@ -29,17 +29,24 @@ class FormsModel
         if(!isset($form_data['simpleFormObj']['lastOrder'])) {
             $up = $form_data['up'];
             $next_order = false;
-            $simples_query = "SELECT sf.crypt AS sf_crypt, up, sf.form_order, sf.title AS sf_title, sfe.* FROM simple_forms sf RIGHT JOIN simple_forms_elements sfe ON sf.crypt = sfe.form_crypt 
-        WHERE sf.smart_form_crypt = :SMART_FORM_CRYPT AND sf.form_order = (SELECT MIN(form_order) FROM simple_forms WHERE smart_form_crypt = :SMART_FORM_CRYPT AND up = :UP) AND up = :UP";
+            $simples_query = "SELECT sf.crypt AS sf_crypt, up, sf.form_order, sf.title AS sf_title, sfe.* 
+                              FROM simple_forms sf RIGHT JOIN simple_forms_elements sfe ON sf.crypt = sfe.form_crypt 
+                              WHERE sf.smart_form_crypt = :SMART_FORM_CRYPT AND sf.form_order = 
+                              (SELECT MIN(form_order) FROM simple_forms WHERE smart_form_crypt = :SMART_FORM_CRYPT AND up = :UP) AND up = :UP";
         }else{
             $up = $form_data['simpleFormObj']['up'];
-            $next_order = $form_data['simpleFormObj']['lastOrder']+1;
-            $simples_query = "SELECT sf.crypt AS sf_crypt, up, sf.form_order, sf.title AS sf_title, sfe.* FROM simple_forms sf RIGHT JOIN simple_forms_elements sfe ON sf.crypt = sfe.form_crypt 
-        WHERE sf.smart_form_crypt = :SMART_FORM_CRYPT AND sf.form_order = :NEXT_ORDER AND up = :UP";
+//            $next_order = $form_data['simpleFormObj']['lastOrder']+1;
+            $next_order_query  = "SELECT form_order FROM simple_forms WHERE form_order > :LAST_ORDER AND up = :UP LIMIT 1";
+            $simples_query = " SELECT sf.crypt AS sf_crypt, up, sf.form_order, sf.title AS sf_title, sfe.* ";
+            $simples_query .= " FROM simple_forms sf RIGHT JOIN simple_forms_elements sfe ON sf.crypt = sfe.form_crypt ";
+            $simples_query .= " WHERE sf.smart_form_crypt = :SMART_FORM_CRYPT ";
+            $simples_query .= " AND sf.form_order = ( SELECT form_order FROM simple_forms WHERE form_order > :LAST_ORDER AND up = :UP LIMIT 1 ) ";
+            $simples_query .= " AND up = :UP ";
         }
         $st = $this->_db->prepare($simples_query);
         $st->bindParam(":SMART_FORM_CRYPT",$form_data['questinnationCrypt'] );
-        $st->bindParam(":NEXT_ORDER",$next_order );
+//        $st->bindParam(":NEXT_ORDER",$next_order );
+        $st->bindParam(":LAST_ORDER",$form_data['simpleFormObj']['lastOrder'] );
         $st->bindParam(":UP",$up );
         $st->execute();
         if($st->rowCount()>0) {
@@ -106,10 +113,10 @@ class FormsModel
         $values = array();
         foreach($answers_object['questionAnswers'] as $quest => $ans ){
             $crypt = md5(microtime());
-            $values[]= "('".$crypt."', '".$form_crypt."', '".$quest."', '".$ans."', '".$sess_crypt."', '".$ct."')";
+            $query = "INSERT INTO smart_user_answers (crypt, form_crypt, question_crypt, answer_crypt, session_crypt, CT) 
+            VALUES ('".$crypt."', '".$form_crypt."', '".$quest."', '".$ans."', '".$sess_crypt."', '".$ct."')
+            ON DUPLICATE KEY UPDATE answer_crypt = '".$ans."' ";
         }
-        $values_string = implode(',', $values);
-        $query = "INSERT INTO smart_user_answers (crypt, form_crypt, question_crypt, answer_crypt, session_crypt, CT) VALUES {$values_string}";
         $st = $this->_db->query($query);
         return $st->errorCode();
     }
@@ -151,15 +158,17 @@ class FormsModel
         setcookie('sess_c',$crypt,time()+3600*24);/*Save session in cookie*/
         return $crypt;
     }
-    private function simpleFormSaveData($save_data_object){
+    private function simpleFormSaveData($save_data_object)
+    {
         $values = array();
-       foreach($save_data_object['fields'] as $field_key => $field_val){
-           $ct = date('Y-m-d H:i:s', time());
-           $values[] = "('".$save_data_object['questinnationCrypt']."', '".$save_data_object['simpleFormCrypt']."', '".$field_key. "', '".$field_val['value']."', '".$ct."', '".$ct."','".$save_data_object['sessionCrypt']."')";
-       }
-        $values_string = implode(',', $values);
-        $query = "INSERT INTO simple_form_user_saved_data (smart_form_crypt, simple_form_crypt, element_crypt, saved_value, CT, UT, user_session_crypt) VALUES {$values_string}";
-        $st = $this->_db->query($query);
+        foreach ($save_data_object['fields'] as $field_key => $field_val) {
+            $ct = date('Y-m-d H:i:s', time());
+            $query = " INSERT INTO simple_form_user_saved_data (smart_form_crypt, simple_form_crypt, element_crypt, saved_value, CT, UT, user_session_crypt) 
+                      VALUES ('" . $save_data_object['questinnationCrypt'] . "', '" . $save_data_object['simpleFormCrypt'] . "', '" . $field_key . "',
+                       '" . $field_val['value'] . "', '" . $ct . "', '" . $ct . "', '" . $save_data_object['sessionCrypt'] . "') ";
+            $query .= " ON DUPLICATE KEY UPDATE saved_value = '" . $field_val['value'] . "', UT = '" . $ct . "' ";
+            $st = $this->_db->query($query);
+        }
     }
     private function ifSimpeFormIsFirst($simple_form_crypt, $questination_crypt){
         $query = "SELECT id FROM simple_forms WHERE crypt = :SIMPLE_CRYPT and form_order = (SELECT MIN(form_order) FROM simple_forms WHERE smart_form_crypt = :QUESTINNATION_CRYPT)";
@@ -193,7 +202,12 @@ class FormsModel
             //        check if phone end =========================
             $this->createNewUser($phone_num);/*craete new user*/
             $user_crypt = $this->getOneUserByPhoneNum($phone_num);
-            $new_session_crypt = $this->newUserSessionOpen($user_crypt);
+            if(isset($form_data['isBack'])&& $form_data['isBack']=='0' ) {
+                $new_session_crypt = $this->newUserSessionOpen($user_crypt);
+            }else{
+                $new_session_crypt = $_COOKIE['sess_c'];
+            }
+
             $save_data_object = array(
                 'questinnationCrypt'=>$form_data['questinnationCrypt'],
                 'simpleFormCrypt' => $form_data['simpleFormCrypt'],
@@ -213,6 +227,17 @@ class FormsModel
         }
         $save_res =  $this->simpleFormSaveData($save_data_object);
         return $save_res;
+    }
+    public function getOneQuestionByCrypt($form_crypt){
+        $query = "SELECT * FROM questions WHERE crypt = :FORM_CRYPT ";
+        $st =  $this->_db->prepare($query);
+        $st->bindParam(":FORM_CRYPT",$form_crypt );
+        $st->execute();
+        $res = $st->fetch(PDO::FETCH_ASSOC);
+        $answers =  $this->getAnswersByQuestion($form_crypt);
+        $res['answers']= $answers;
+        $res['form_data']= $form_crypt;
+        return $res;
     }
     public function getOneSimpleFormByCrypt($form_crypt){
         $query = "SELECT sfe.crypt AS element_crypt, sfe.title AS field_title, sfe.type, sfe.placeholder, value,  sf.* FROM simple_forms_elements sfe LEFT JOIN simple_forms sf ON sfe.form_crypt = sf.crypt   WHERE sf.crypt = :FORM_CRYPT";
@@ -236,8 +261,8 @@ class FormsModel
         }
         return $simple_form_object;
     }
-    public function questionBack($data){
 
+    public function questionBack($data){
         if($data['parentAnswerCrypt']=='0'){
             $last_up_simple_query = "SELECT crypt FROM simple_forms WHERE up = 1 AND form_order = (SELECT MAX(form_order) FROM simple_forms WHERE up = 1)";
             $l_st = $this->_db->query($last_up_simple_query);
@@ -245,7 +270,6 @@ class FormsModel
             $crypt = $r['crypt'];
             return $this->getOneSimpleFormByCrypt($crypt);
         }
-
 //        get parent answer Question =============
         $query = "SELECT * FROM questions WHERE crypt = (SELECT question_crypt from answers WHERE crypt = :PARENT_ANSWER_CRYPT) ";
        $st =  $this->_db->prepare($query);
@@ -256,6 +280,28 @@ class FormsModel
        $res['answers']= $answers;
        $res['form_data']= $res['form_crypt'];
         return $res;
+    }
+    public function simpleBack($data){
+//        get previus simple form crypt ========================================
+          $crypt_query = "SELECT crypt FROM simple_forms WHERE up = :UP AND form_order < :LAST_ORDER LIMIT 1";
+          $st = $this->_db->prepare($crypt_query);
+          $st->bindParam(":UP",$data['up'] );
+          $st->bindParam(":LAST_ORDER",$data['simpleFormOrder'] );
+          $st->execute();
+          if($st->rowCount()>0) {
+              $res = $st->fetch(PDO::FETCH_ASSOC);
+              return $this->getOneSimpleFormByCrypt($res['crypt']);
+          }else{
+              $session = $_COOKIE['sess_c'];
+              $query = " SELECT question_crypt FROM smart_user_answers WHERE session_crypt = :SESS AND  id = (SELECT MAX(id) FROM smart_user_answers WHERE session_crypt = :SESS)";
+              $q_st = $this->_db->prepare($query);
+              $q_st->bindParam(":SESS",$session );
+              $q_st->execute();
+//              return var_dump($q_st->errorInfo());
+              $res = $q_st->fetch(PDO::FETCH_ASSOC);
+//              return var_dump($res);
+              return $this->getOneQuestionByCrypt($res['question_crypt']);
+          }
     }
 
 

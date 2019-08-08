@@ -28,7 +28,7 @@ class AjaxController
         $simple_form_data = $this->forms_model->getOneSimpleForm($form_container_data);
         if(is_array($simple_form_data)) {
             $form_data = $simple_form_data['simpleObject'];
-            ob_start();
+            ob_start("ob_gzhandler");
             require_once 'simple_form_component.php';
             ob_end_flush();
         }else{
@@ -45,7 +45,7 @@ class AjaxController
          $simple_form_data = $this->forms_model->getOneSimpleForm($form_container_data);
          if(is_array($simple_form_data)) {
              $form_data = $simple_form_data['simpleObject'];
-             ob_start();
+             ob_start("ob_gzhandler");
              require_once 'simple_form_component.php';
              ob_end_flush();
          }else{
@@ -55,7 +55,7 @@ class AjaxController
 
      }else {
          $form_data['form_data'] = $form_container_data['questinnationCrypt'];
-         ob_start();
+         ob_start("ob_gzhandler");
          require_once 'form_component_box.php';
          ob_end_flush();
      }
@@ -64,10 +64,24 @@ class AjaxController
     private function questionBack($form_container_data){
         $form_data = $this->forms_model->questionBack($form_container_data);
         if(isset($form_data['is_simple'])){
-            ob_start();
+            $form_data['is_back'] = 1;
+            ob_start("ob_gzhandler");
             require_once 'simple_form_component.php';
             ob_end_flush();
         }else {
+            ob_start("ob_gzhandler");
+            require_once 'form_component_box.php';
+            ob_end_flush();
+        }
+    }
+    private function simpleBack($object){
+      $form_data = $this->forms_model->simpleBack($object);
+      $form_data['is_back'] = 1;
+        if(isset($form_data['is_simple'])){
+            ob_start();
+            require_once 'simple_form_component.php';
+            ob_end_flush();
+        }else{
             ob_start();
             require_once 'form_component_box.php';
             ob_end_flush();

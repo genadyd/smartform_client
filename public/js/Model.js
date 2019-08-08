@@ -34,6 +34,7 @@ class Model {
         let formContainer = that.closest('.form_container'),
             questinnationCrypt = formContainer.attr('questinnation_crypt'),
             simpleFormCrypt = formContainer.attr('simple_form_crypt'),
+            isBack = formContainer.attr('is_back')||'0',
             curentFormOrder = that.attr('form_order'),
             fields = {};
         $.each(formContainer.find('.form_container_body input'), function (key, val) {
@@ -52,7 +53,8 @@ class Model {
             'questinnationCrypt': questinnationCrypt,
             'simpleFormCrypt':simpleFormCrypt,
             'lastOrder': curentFormOrder,
-            'fields':fields
+            'fields':fields,
+            'isBack': isBack
         }
         let ajaxObject = {
             'func': 'simpleFormSave',

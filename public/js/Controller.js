@@ -62,7 +62,7 @@ simpleFormSave(){
     $('.left_container').on('click', '.simple_form_box .form_container_footer .simple_form_send', function () {
        let ajaxObject = that.model.simpleFormSaveBuildObject($(this));
        ajaxObject['collBackFunction']= that.view.simpleFormObjectSave,
-           console.log(ajaxObject);
+           // console.log(ajaxObject);
         that.model.sendAjax(ajaxObject, $(this));
 
         let ajaxObjectToNextFormShow = {
@@ -72,7 +72,8 @@ simpleFormSave(){
             'dataType':'html',
             'simpleFormObj':{
                 'lastOrder':ajaxObject.formObj.lastOrder,
-                'up':$(this).attr('up')
+                'up':$(this).attr('up'),
+
             }
         }
         that.model.sendAjax(ajaxObjectToNextFormShow, $(this));
@@ -101,8 +102,8 @@ simpleBack(that){
                 'collBackFunction': that.view.getOneQuestionForm,
                 'simpleFormCrypt': container.attr('question_cript'),
                 'questinnationCrypt': container.attr('questinnation_crypt'),
-                'simpleFormOrder':$(this).arrt('form_order'),
-                'up':$(this).arrt('up'),
+                'simpleFormOrder':$(this).attr('form_order'),
+                'up':$(this).attr('up'),
                 'dataType':'html'
             };
         that.model.sendAjax(ajaxObject, $(this))
