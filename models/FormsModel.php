@@ -87,23 +87,60 @@ class FormsModel
         }
         return $res;
     }
-    private function getAnswersByQuestion($question_crypt){
-        $query = " SELECT ans.*, el.type, el.crypt as element_cript FROM answers ans JOIN elements el ON  ans.element_crypt = el.crypt WHERE ans.question_crypt = :QUESTION_CRYPT ";
-        $ans_st = $this->_db->prepare($query);
-        $ans_st->bindParam(":QUESTION_CRYPT",$question_crypt, PDO::PARAM_STR );
-        $ans_st->execute();
-        $ans_res = $ans_st->fetchAll(PDO::FETCH_ASSOC);
+    private function getAnswersByQuestion($question_crypt, $get_values = false){
+        if(!$get_values) {
+            $query = " SELECT ans.*, el.type, el.crypt as element_cript FROM answers ans JOIN elements el ON  ans.element_crypt = el.crypt WHERE ans.question_crypt = :QUESTION_CRYPT ";
+            $ans_st = $this->_db->prepare($query);
+            $ans_st->bindParam(":QUESTION_CRYPT", $question_crypt, PDO::PARAM_STR);
+            $ans_st->execute();
+            $ans_res = $ans_st->fetchAll(PDO::FETCH_ASSOC);
             $counter_array = array();
-            foreach ($ans_res as $k => $ans){
-                if($ans['type']=='radio' ) {
-                    if(count($counter_array) == 0) {
+            foreach ($ans_res as $k => $ans) {
+                if ($ans['type'] == 'radio') {
+                    if (count($counter_array) == 0) {
                         $nam = 'rand';
                         array_push($counter_array, '1');
                     }
                     $ans_res[$k]['radio_name'] = $nam;
                 }
             }
-        return $ans_res;
+            return $ans_res;
+        }else{
+//            get question form structure ====================
+            $query = " SELECT ans.*, el.type, el.crypt as element_cript 
+                       FROM answers ans 
+                       JOIN elements el ON  ans.element_crypt = el.crypt
+                       WHERE ans.question_crypt = :QUESTION_CRYPT ";
+            $ans_st = $this->_db->prepare($query);
+            $ans_st->bindParam(":QUESTION_CRYPT", $question_crypt, PDO::PARAM_STR);
+            $ans_st->execute();
+            $ans_res = $ans_st->fetchAll(PDO::FETCH_ASSOC);
+//            ======================================================================
+//            get answers User Saved DAta=============================================
+            $s_query = " SELECT answer_crypt FROM smart_user_answers WHERE session_crypt = :SESS AND question_crypt = :QUEST";
+            $s_st = $this->_db->prepare($s_query);
+            $s_st->bindParam(":QUEST", $question_crypt, PDO::PARAM_STR);
+            $s_st->bindParam(":SESS", $_COOKIE['sess_c'], PDO::PARAM_STR);
+            $s_st->execute();
+            $row = $s_st->fetch(PDO::FETCH_ASSOC);
+            $selected_answer = $row['answer_crypt'];
+            $counter_array = array();
+            foreach ($ans_res as $k => $ans) {
+                if ($ans['type'] == 'radio') {
+                    if (count($counter_array) == 0) {
+                        $nam = 'rand';
+                        array_push($counter_array, '1');
+                    }
+                    $ans_res[$k]['radio_name'] = $nam;
+                    if($ans['crypt'] == $selected_answer ){
+                        $ans_res[$k]['selected'] = '1';
+                    }
+                }
+            }
+            return $ans_res;
+        }
+
+
     }
     public function saveUserAnswersFormsObject($answers_object){
         $ct = date('Y-m-d H:i:s', time());
@@ -200,12 +237,20 @@ class FormsModel
                 return 'err';
             }
             //        check if phone end =========================
-            $this->createNewUser($phone_num);/*craete new user*/
-            $user_crypt = $this->getOneUserByPhoneNum($phone_num);
-            if(isset($form_data['isBack'])&& $form_data['isBack']=='0' ) {
+
+            if(!isset($form_data['isBack'])|| $form_data['isBack']=='0' ) {
+                $this->createNewUser($phone_num);/*craete new user*/
+                $user_crypt = $this->getOneUserByPhoneNum($phone_num);
                 $new_session_crypt = $this->newUserSessionOpen($user_crypt);
             }else{
                 $new_session_crypt = $_COOKIE['sess_c'];
+//                get_exists_user_id for update user phone (in "isBack" situation)
+                $update_user_phone = "UPDATE smart_form_users SET user_phone = :PHONE WHERE user_crypt =( SELECT user_crypt FROM users_sessions WHERE session_cript = :SESS ) ";
+                $st = $this->_db->prepare($update_user_phone);
+                $st->bindParam(":PHONE",$phone_num );
+                $st->bindParam(":SESS",$new_session_crypt );
+                $st->execute();
+//                var_dump($st->errorInfo());
             }
 
             $save_data_object = array(
@@ -214,7 +259,6 @@ class FormsModel
                 'sessionCrypt'=> $new_session_crypt,
                 'fields' =>$form_data['fields']
             );
-
         }else{
             $session_crypt = $_COOKIE['sess_c'];
             $save_data_object = array(
@@ -234,17 +278,33 @@ class FormsModel
         $st->bindParam(":FORM_CRYPT",$form_crypt );
         $st->execute();
         $res = $st->fetch(PDO::FETCH_ASSOC);
-        $answers =  $this->getAnswersByQuestion($form_crypt);
+        $answers =  $this->getAnswersByQuestion($form_crypt, true);
         $res['answers']= $answers;
-        $res['form_data']= $form_crypt;
+        $res['form_data']= $res['form_crypt'];
         return $res;
     }
-    public function getOneSimpleFormByCrypt($form_crypt){
-        $query = "SELECT sfe.crypt AS element_crypt, sfe.title AS field_title, sfe.type, sfe.placeholder, value,  sf.* FROM simple_forms_elements sfe LEFT JOIN simple_forms sf ON sfe.form_crypt = sf.crypt   WHERE sf.crypt = :FORM_CRYPT";
+    public function getOneSimpleFormByCrypt($form_crypt, $get_saved_values = false){
+        $query = "SELECT sfe.crypt AS element_crypt, sfe.title AS field_title, sfe.type, sfe.placeholder, value,  sf.* 
+                  FROM simple_forms_elements sfe LEFT JOIN simple_forms sf ON sfe.form_crypt = sf.crypt   
+                  WHERE sf.crypt = :FORM_CRYPT";
         $st = $this->_db->prepare($query);
         $st->bindParam(":FORM_CRYPT",$form_crypt );
         $st->execute();
         $res = $st->fetchAll(PDO::FETCH_ASSOC);
+        if($get_saved_values){
+            $values_array = array();
+            $saved_values_query = "SELECT element_crypt, saved_value FROM simple_form_user_saved_data WHERE simple_form_crypt = :SIMPLE_FORM_CRYPT AND user_session_crypt = :SESS ";
+            $val_st = $this->_db->prepare($saved_values_query);
+            $val_st->bindParam(":SIMPLE_FORM_CRYPT",$form_crypt );
+            $val_st->bindParam(":SESS",$_COOKIE['sess_c'] );
+            $val_st->execute();
+            if($val_st->rowCount()>0){
+               $row = $val_st->fetchAll(PDO::FETCH_ASSOC);
+               foreach ($row as $val){
+                   $values_array[$val['element_crypt']] = $val['saved_value'];
+               }
+            }
+        }
         $simple_form_object = array();
         foreach ($res as $element){
             $simple_form_object['crypt'] = $form_crypt;
@@ -258,17 +318,21 @@ class FormsModel
                 'type'=>$element['type'],
                 'placeholder'=>$element['placeholder'],
             );
+            if(isset($values_array[$element['element_crypt']])){
+                $simple_form_object['fields'][$element['element_crypt']]['element_value'] =  $values_array[$element['element_crypt']];
+            }
         }
         return $simple_form_object;
     }
 
     public function questionBack($data){
+        $this->deleteSavedAnswerByQuestionId($data['questionCrypt']);
         if($data['parentAnswerCrypt']=='0'){
             $last_up_simple_query = "SELECT crypt FROM simple_forms WHERE up = 1 AND form_order = (SELECT MAX(form_order) FROM simple_forms WHERE up = 1)";
             $l_st = $this->_db->query($last_up_simple_query);
             $r = $l_st->fetch(PDO::FETCH_ASSOC);
             $crypt = $r['crypt'];
-            return $this->getOneSimpleFormByCrypt($crypt);
+            return $this->getOneSimpleFormByCrypt($crypt, true);
         }
 //        get parent answer Question =============
         $query = "SELECT * FROM questions WHERE crypt = (SELECT question_crypt from answers WHERE crypt = :PARENT_ANSWER_CRYPT) ";
@@ -276,7 +340,7 @@ class FormsModel
        $st->bindParam(":PARENT_ANSWER_CRYPT",$data['parentAnswerCrypt'] );
        $st->execute();
         $res = $st->fetch(PDO::FETCH_ASSOC);
-       $answers =  $this->getAnswersByQuestion($res['crypt']);
+       $answers =  $this->getAnswersByQuestion($res['crypt'], true);
        $res['answers']= $answers;
        $res['form_data']= $res['form_crypt'];
         return $res;
@@ -290,7 +354,7 @@ class FormsModel
           $st->execute();
           if($st->rowCount()>0) {
               $res = $st->fetch(PDO::FETCH_ASSOC);
-              return $this->getOneSimpleFormByCrypt($res['crypt']);
+              return $this->getOneSimpleFormByCrypt($res['crypt'], true);
           }else{
               $session = $_COOKIE['sess_c'];
               $query = " SELECT question_crypt FROM smart_user_answers WHERE session_crypt = :SESS AND  id = (SELECT MAX(id) FROM smart_user_answers WHERE session_crypt = :SESS)";
@@ -299,9 +363,17 @@ class FormsModel
               $q_st->execute();
 //              return var_dump($q_st->errorInfo());
               $res = $q_st->fetch(PDO::FETCH_ASSOC);
-//              return var_dump($res);
+
               return $this->getOneQuestionByCrypt($res['question_crypt']);
           }
+    }
+    public function deleteSavedAnswerByQuestionId($question_crypt){
+        $query = " DELETE FROM smart_user_answers WHERE question_crypt = :QUEST AND session_crypt = :SESS ";
+        $st = $this->_db->prepare($query);
+        $st->bindParam(":QUEST",$question_crypt, PDO::PARAM_STR );
+        $st->bindParam(":SESS",$_COOKIE['sess_c'], PDO::PARAM_STR );
+        $st->execute();
+        return $st->rowCount();
     }
 
 

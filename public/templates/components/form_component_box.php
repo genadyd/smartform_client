@@ -7,7 +7,7 @@
             <?php foreach($form_data['answers'] as $answer):  ?>
             <div class="one_answer" crypt="<?=$answer['crypt'] ?>">
                 <div class="title"><?=$answer['tytle'] ?></div>
-                <input type="<?=$answer['type'] ?>" name="<?= $answer['radio_name'] ?>" value="<?=$answer['type'] ?>" >
+                <input type="<?=$answer['type'] ?>" <?php if(isset($answer['selected'])){echo 'checked';}  ?> name="<?= $answer['radio_name'] ?>" value="<?=$answer['type'] ?>" >
             </div>
             <?php endforeach; ?>
         </div>

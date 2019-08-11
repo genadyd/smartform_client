@@ -36,6 +36,9 @@ class AjaxController
                 $form_container_data['parentAnswerCrypt'] = 0;
                 $this->getOneQuestionForm($form_container_data);
             }
+            else{
+                echo "here if after save Form function";
+            }
         }
     }
     private function getOneQuestionForm($form_container_data){
@@ -65,11 +68,11 @@ class AjaxController
         $form_data = $this->forms_model->questionBack($form_container_data);
         if(isset($form_data['is_simple'])){
             $form_data['is_back'] = 1;
-            ob_start("ob_gzhandler");
+            ob_start();
             require_once 'simple_form_component.php';
             ob_end_flush();
         }else {
-            ob_start("ob_gzhandler");
+            ob_start();
             require_once 'form_component_box.php';
             ob_end_flush();
         }
@@ -98,5 +101,6 @@ class AjaxController
         }
         var_dump($param);
     }
+
 
 }

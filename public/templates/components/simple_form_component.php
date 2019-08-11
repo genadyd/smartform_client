@@ -8,7 +8,7 @@
           <?php foreach ($form_data['fields'] as $field_key => $field): ?>
             <div class="form_element_box" field_crypt="<?=$field_key?>">
                 <h5><?=$field['title']?></h5>
-                <input type="text" element_type="<?=$field['type']?>" placeholder="<?=$field['placeholder']?>">
+                <input type="text" element_type="<?=$field['type']?>" placeholder="<?=$field['placeholder']?>" <?php if(isset($field['element_value'])): ?> value="<?= $field['element_value']?>" <?php endif; ?>>
             </div>
           <?php endforeach; ?>
       </div>
